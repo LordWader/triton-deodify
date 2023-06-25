@@ -44,8 +44,12 @@ ensemble_scheduling {
             model_name: "deoldify_postprocessing"
             model_version: -1
             input_map {
-                key: "deoldify_postprocessing_input"
+                key: "deoldify_postprocessing_input_0"
                 value: "colored_image"
+            }
+            input_map {
+                key: "deoldify_postprocessing_input_1"
+                value: "input_image"
             }
             output_map {
                 key: "deoldify_postprocessing_output"

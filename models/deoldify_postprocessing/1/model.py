@@ -1,5 +1,7 @@
+import PIL.Image
 import cv2
 import numpy as np
+from PIL import Image
 
 import triton_python_backend_utils as pb_utils
 import json
@@ -58,16 +60,23 @@ class TritonPythonModel:
         # Every Python backend must iterate over every one of the requests
         # and create a pb_utils.InferenceResponse for each of them.
         for request in requests:
-            # Get INPUT0
-            inp = pb_utils.get_input_tensor_by_name(request, "deoldify_postprocessing_input")
+            inp = pb_utils.get_input_tensor_by_name(request, "deoldify_postprocessing_input_0")
+            orig_image = pb_utils.get_input_tensor_by_name(request, "deoldify_postprocessing_input_1")
             img = inp.as_numpy()
-            W, H = 960, 540
+            W, H, _ = orig_image.shape
 
             img = np.transpose(img, axes=(1, 2, 0)).astype(np.uint8)
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            img = cv2.resize(img, (W, H), interpolation=cv2.INTER_AREA)
+            pil = Image.fromarray(img)
+            pil = pil.resize((W, H), resample=PIL.Image.BILINEAR)
+            color_np = np.asarray(pil)
+            orig_np = np.asarray(orig_image)
+            color_yuv = cv2.cvtColor(color_np, cv2.COLOR_RGB2YUV)
+            orig_yuv = cv2.cvtColor(orig_np, cv2.COLOR_RGB2YUV)
+            hires = np.copy(orig_yuv)
+            hires[:, :, 1:3] = color_yuv[:, :, 1:3]
+            final = cv2.cvtColor(hires, cv2.COLOR_YUV2BGR)
 
-            out_tensor = pb_utils.Tensor("deoldify_postprocessing_output", img.astype(self.output_type))
+            out_tensor = pb_utils.Tensor("deoldify_postprocessing_output", final.astype(self.output_type))
 
             # Create InferenceResponse. You can set an error here in case
             # there was a problem with handling this inference request.
